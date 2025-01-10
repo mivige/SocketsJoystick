@@ -15,10 +15,14 @@ pygame.display.set_caption("Joystick Emulator")
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 RED = (255, 0, 0)
+GRAY = (128, 128, 128)
 
 # Point properties
 POINT_SIZE = 10
 MOVE_DISTANCE = 10
+
+# Font setup
+font = pygame.font.Font(None, 24)
 
 class Point:
     def __init__(self):
@@ -41,67 +45,70 @@ class Point:
     def draw(self, surface):
         pygame.draw.circle(surface, RED, (self.x, self.y), POINT_SIZE)
 
+def draw_text(surface, text, y_position):
+    text_surface = font.render(text, True, WHITE)
+    text_rect = text_surface.get_rect(center=(WINDOW_SIZE[0]/2, y_position))
+    surface.blit(text_surface, text_rect)
+
 def main():
     # Create TCP/IP socket
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     
     # Bind socket to port
-    server_address = ('0.0.0.0', 10000)  # Listen on all available interfaces
-    print(f'Starting up on {server_address[0]}:{server_address[1]}')
-    sock.bind(server_address)
+    server_address = ('0.0.0.0', 10000)
+    status_message = f'Server running on port {server_address[1]}'
     
-    # Listen for incoming connections
+    sock.bind(server_address)
     sock.listen(1)
     
     point = Point()
     clock = pygame.time.Clock()
     running = True
+    connected = False
     
     while running:
-        print('Waiting for a connection...')
-        connection, client_address = sock.accept()
+        # Handle Pygame events
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
         
-        try:
-            print(f'Connection from {client_address}')
-            
-            while True:
-                # Handle Pygame events
-                for event in pygame.event.get():
-                    if event.type == pygame.QUIT:
-                        running = False
-                        break
-                
-                # Set socket to non-blocking
+        # Update display
+        screen.fill(BLACK)
+        point.draw(screen)
+        
+        if not connected:
+            # Accept connection (non-blocking)
+            sock.setblocking(False)
+            try:
+                connection, client_address = sock.accept()
+                connected = True
+                status_message = f'Connected to: {client_address[0]}'
                 connection.setblocking(False)
+            except BlockingIOError:
+                status_message = 'Waiting for connection...'
+        else:
+            try:
+                data = connection.recv(16).decode()
+                if data == 'QUIT':
+                    connected = False
+                    connection.close()
+                elif data:
+                    if data == 'RESET':
+                        point.reset()
+                    else:
+                        point.move(data)
+                    status_message = f'Received command: {data}'
+            except BlockingIOError:
+                pass
+            except ConnectionResetError:
+                connected = False
+                status_message = 'Client disconnected'
                 
-                try:
-                    data = connection.recv(16).decode()
-                    
-                    if data == 'QUIT':
-                        running = False
-                        break
-                    
-                    if data:
-                        # Handle received command
-                        if data == 'RESET':
-                            point.reset()
-                        else:
-                            point.move(data)
-                except BlockingIOError:
-                    pass  # No data available
-                
-                # Update display
-                screen.fill(BLACK)
-                point.draw(screen)
-                pygame.display.flip()
-                
-                # Control frame rate
-                clock.tick(60)
-                
-        except Exception as e:
-            print(f"Error: {e}")
-        finally:
-            connection.close()
+        # Draw status messages
+        draw_text(surface=screen, text=status_message, y_position=30)
+        
+        pygame.display.flip()
+        clock.tick(60)
             
     pygame.quit()
     sock.close()
