@@ -14,7 +14,7 @@ def main():
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     
     # Connect to server
-    server_address = ('localhost', 10000)  # Replace with actual server IP
+    server_address = ('SERVER_IP_ADDRESS', 10000)  # Replace with actual server IP
     print(f'Connecting to {server_address[0]}:{server_address[1]}')
     sock.connect(server_address)
     
