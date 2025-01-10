@@ -3,6 +3,20 @@ import socket
 import pygame
 import sys
 
+def get_local_ip():
+    """Get the local IP address of the machine."""
+    try:
+        # Create a temporary socket to get local IP
+        temp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        temp_socket.connect(('8.8.8.8', 80))
+        local_ip = temp_socket.getsockname()[0]
+        temp_socket.close()
+        return local_ip
+    except Exception:
+        # Fallback method if the first method fails
+        hostname = socket.gethostname()
+        return socket.gethostbyname(hostname)
+
 # Initialize Pygame
 pygame.init()
 
@@ -22,7 +36,7 @@ POINT_SIZE = 10
 MOVE_DISTANCE = 10
 
 # Font setup
-font = pygame.font.Font(None, 24)
+font = pygame.font.Font(None, 30)
 
 class Point:
     def __init__(self):
@@ -51,6 +65,9 @@ def draw_text(surface, text, y_position):
     surface.blit(text_surface, text_rect)
 
 def main():
+    # Get local IP address
+    local_ip = get_local_ip()
+    
     # Create TCP/IP socket
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     
@@ -86,6 +103,8 @@ def main():
                 connection.setblocking(False)
             except BlockingIOError:
                 status_message = 'Waiting for connection...'
+                # Display IP address when waiting
+                status_message += f' Server IP: {local_ip}'
         else:
             try:
                 data = connection.recv(16).decode()
